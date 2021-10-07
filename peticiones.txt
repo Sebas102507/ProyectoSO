@@ -1,0 +1,5 @@
+D,Alicia en el Pais de las Maravillas,2133
+R,Hamlet,234
+R,Historia de Colombia,223
+P,Calculo Diferencial,120
+P,Algebra Lineal,111
