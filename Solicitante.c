@@ -12,28 +12,42 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void workFromMenu(char *pipeReceptor)
+char continueValidation()
 {
-    /*//printf("START\n");
-    char opcion[50];
-    int cont = 1;
-
-    while (cont)
-    {
-        printf("$");
-        scanf("%s", opcion);
-        if (strcmp(opcion, "s") == 0)
-        {
-            cont = 0;
-            printf("Closed\n");
-        }
-    }*/
+    char result;
+    //printf("START\n");
+    fflush(stdin);
+    printf("¿Continue? (y/n) $");
+    scanf("%c", &result);
+    return result;
 }
 
-void readConfirmationMessage(int fd)
+char *getBookInfoFromMenu()
+{
+    char bookName[100];
+    char ISBN[100];
+    static char info[255] = "";
+    if (strlen(info) > 0)
+    {
+        memset(info, 0, strlen(info));
+    }
+    fflush(stdin);
+    printf("¿Book Name? $");
+    scanf("%[^\n]s", bookName);
+    printf("\n¿ISBN? $");
+    fflush(stdin);
+    scanf("%[^\n]s", ISBN);
+    strcat(info, ",");
+    strcat(info, bookName);
+    strcat(info, ",");
+    strcat(info, ISBN);
+    return info;
+}
+
+void readConfirmationMessage(int fd, char *processId)
 {
     //int fd;
-    char *pipeName = "confirmationPipe";
+    char *pipeName = processId;
     char message[100];
     unlink(pipeName);
     mkfifo(pipeName, 0);
@@ -49,8 +63,8 @@ void readConfirmationMessage(int fd)
     }
     //close(fd);
 }
-
-void sendDataThroughPipe(char *info, char *pipeReceptor, int infoIndex, int numRequests, int isProcessId)
+//sendDataThroughPipe(processId, pipeReceptor, 0, i, 1);
+void sendDataThroughPipe(char *info, char *pipeReceptor, int infoIndex, int numRequests, int isProcessId, char *processId)
 {
     int fd;
     int fdRead;
@@ -67,7 +81,7 @@ void sendDataThroughPipe(char *info, char *pipeReceptor, int infoIndex, int numR
     write(fd, info, 100);
     if (!isProcessId)
     {
-        readConfirmationMessage(fdRead);
+        readConfirmationMessage(fdRead, processId);
     }
     sleep(3);
     if (infoIndex == numRequests - 1)
@@ -78,19 +92,73 @@ void sendDataThroughPipe(char *info, char *pipeReceptor, int infoIndex, int numR
     }
 }
 
-void workFromFile(char requests[100][100], int numRequests, char *pipeReceptor)
+void workFromMenu(char *pipeReceptor)
+{
+    int option;
+    char processId[25];
+    char bookName[100];
+    char ISBN[100];
+    char conti;
+    char request[100] = "";
+    sprintf(processId, "%d", getpid());
+    while (1)
+    {
+        printf("\n<<<<<<<Menu>>>>>>>\n");
+        printf("1) Return Book\n");
+        printf("2) Renew Book\n");
+        printf("3) Request Book\n");
+        scanf("%d", &option);
+        if (option != 1 && option != 2 && option != 3)
+        {
+            printf("Invalid command\n");
+        }
+        else
+        {
+            if (strlen(request) > 0)
+            {
+                memset(request, 0, strlen(request));
+            }
+            if (option == 1)
+            {
+                strcat(request, "D");
+                strcat(request, getBookInfoFromMenu());
+                //printf("Request: %s\n", request);
+            }
+            else if (option == 2)
+            {
+                strcat(request, "R");
+                strcat(request, getBookInfoFromMenu());
+            }
+            else if (option == 3)
+            {
+                strcat(request, "P");
+                strcat(request, getBookInfoFromMenu());
+            }
+            printf("Request: %s\n", request);
+            sendDataThroughPipe(processId, pipeReceptor, 0, 0, 1, processId);
+            sendDataThroughPipe(request, pipeReceptor, 0, 1, 0, processId);
+            conti = continueValidation();
+            if (conti == 'n' || conti == 'N')
+            {
+                break;
+            }
+        }
+    }
+}
+
+void workFromFile(char requests[100][100], int numRequests, char *pipeReceptor, char *processId)
 {
     for (int k = 0; k < numRequests; k++)
     {
         if (requests[k][1] != ',')
         {
             //printf("Sending throught the pipe :%s\n", requests[k] + 1);
-            sendDataThroughPipe(requests[k] + 1, pipeReceptor, k, numRequests, 0);
+            sendDataThroughPipe(requests[k] + 1, pipeReceptor, k, numRequests, 0, processId);
         }
         else
         {
             //printf("Sending throught the pipe :%s\n", requests[k]);
-            sendDataThroughPipe(requests[k], pipeReceptor, k, numRequests, 0);
+            sendDataThroughPipe(requests[k], pipeReceptor, k, numRequests, 0, processId);
         }
     }
 }
@@ -129,8 +197,8 @@ void getBooksFromFile(char *fileName, char *pipeReceptor)
         /////////////////////////////////
         fclose(fp);
         //printf("Sending throught the pipe :%s\n", processId);
-        sendDataThroughPipe(processId, pipeReceptor, 0, i, 1);
-        workFromFile(requests, i, pipeReceptor);
+        sendDataThroughPipe(processId, pipeReceptor, 0, i, 1, processId);
+        workFromFile(requests, i, pipeReceptor, processId);
     }
     else
     {
@@ -153,7 +221,14 @@ int main(int argc, const char *argv[])
     }
     else
     {
-        printf("FROM MENU\n");
+        if (strcmp(argv[1], "-p") == 0 && argv[2] != NULL)
+        {
+            workFromMenu((char *)argv[2]);
+        }
+        else
+        {
+            printf("Invalid command\n");
+        }
     }
     return 0;
 }

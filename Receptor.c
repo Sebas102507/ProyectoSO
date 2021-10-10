@@ -6,8 +6,18 @@
 #include <fcntl.h>
 #include <time.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <time.h>
+
 #define MAX 50
 #define MAX_S 100
+
+struct arg_struct
+{
+    struct Libro *argDB;
+    char *argISBN;
+    char *fileRoute;
+};
 
 struct Ejemplar
 {
@@ -24,6 +34,87 @@ struct Libro
     struct Ejemplar ejempl[MAX];
 };
 
+char *getCurrentDate()
+{
+    static char date[MAX_S];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    //strfcat(date, "%d-%d-%d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+    sprintf(date, "%d-%d-%d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+    return date;
+}
+
+void updateDB(struct Libro *db, char *fileRoute)
+{
+    printf("Updating DB... ");
+    int i = 0;
+    FILE *file;
+    file = fopen(fileRoute, "w+");
+    if (file != NULL)
+    {
+        //fputs("This is testing for fputs...\n", file);
+        while (1)
+        {
+            if (strlen(db[i].name) == 0)
+            {
+                //printf("END PRINTakldfakl\n");
+                break;
+            }
+            else
+            {
+                //printf("HELLO\n");
+                fprintf(file, "%s,%s,%d\n", db[i].name, db[i].ISBN, db[i].numEjemp);
+                for (int j = 0; j < db[i].numEjemp; j++)
+                {
+                    if (j == db[i].numEjemp - 1 && strlen(db[i + 1].ISBN) == 0)
+                    {
+                        fprintf(file, "%d,%s,%s", db[i].ejempl[j].id, db[i].ejempl[j].status, db[i].ejempl[j].fecha);
+                    }
+                    else
+                    {
+                        fprintf(file, "%d,%s,%s\n", db[i].ejempl[j].id, db[i].ejempl[j].status, db[i].ejempl[j].fecha);
+                    }
+                    //printf("      Ejemplar ID: %d, STATUS: %s, Date: %s\n", db[i].ejempl[j].id, db[i].ejempl[j].status, db[i].ejempl[j].fecha);
+                }
+            }
+            i++;
+        }
+    }
+    printf("OK\n");
+    fclose(file);
+}
+
+//void *returnBook(struct Libro *db, char *bookName, char *ISBN)
+void returnBook(void *context)
+{
+    struct arg_struct *arguments = context;
+    int newNumEjem;
+    struct Ejemplar newEjemplar;
+    //printf("HEllo!!!!!!! %s\n", arguments->argISBN);
+    int i = 0;
+    while (1)
+    {
+        if (strlen(arguments->argDB[i].name) == 0)
+        {
+            //printf("END PRINT\n");
+            break;
+        }
+        if (strcmp(arguments->argDB[i].ISBN, arguments->argISBN) == 0)
+        {
+            //newEjemplar.fecha
+            //strcpy(newEjemplar.fecha, getCurrentDate());
+            newNumEjem = arguments->argDB[i].numEjemp + 1;
+            newEjemplar.id = newNumEjem;
+            strcpy(newEjemplar.fecha, getCurrentDate());
+            strcpy(newEjemplar.status, "D");
+            arguments->argDB[i].ejempl[arguments->argDB[i].numEjemp] = newEjemplar;
+            arguments->argDB[i].numEjemp = newNumEjem;
+        }
+        i++;
+    }
+    updateDB(arguments->argDB, arguments->fileRoute);
+}
+
 void printDB(struct Libro *db)
 {
     int i = 0;
@@ -31,7 +122,7 @@ void printDB(struct Libro *db)
     {
         if (strlen(db[i].name) == 0)
         {
-            printf("END PRINT\n");
+            //printf("END PRINT\n");
             break;
         }
         else
@@ -110,14 +201,14 @@ struct Ejemplar getEjemplar(char *ejemplarInfo)
     strcpy(ejemplar.status, status);
     strcpy(ejemplar.fecha, date);
     return ejemplar;
-    //struct Libro libro = {.name = name, .ISBN = ISBN, .numEjemp = numEjempl};
 }
 
 struct Libro *getDB(char *dataBaseFile)
 {
+    printf("Loading Database...");
     char fileRoute[100] = "./";
     strcat(fileRoute, dataBaseFile);
-    printf("DB FILE: %s\n", fileRoute);
+    //printf("DB FILE: %s\n", fileRoute);
     static struct Libro libros[MAX_S];
     char c;
     char text[100] = "";
@@ -175,7 +266,6 @@ struct Libro *getDB(char *dataBaseFile)
                         i += 1;
                     }
                 }
-
                 memset(text, 0, strlen(text));
             }
         }
@@ -191,13 +281,14 @@ struct Libro *getDB(char *dataBaseFile)
         ////////////////////////////////////////////////////////
         fclose(fp);
     }
+    printf("  OK\n");
     return libros;
 }
 
 void *continueValidation()
 {
     char *result = malloc(sizeof(char));
-    printf("START\n");
+    //printf("START\n");
     printf("$");
     scanf("%s", result);
     return (void *)result;
@@ -206,10 +297,9 @@ void *continueValidation()
 void sendRequestRecivedConfirmationMessage(char *messange, char *processId)
 {
     int fd;
-    char *pipeName = processId;
     do
     {
-        fd = open("confirmationPipe", O_WRONLY | O_NONBLOCK);
+        fd = open(processId, O_WRONLY | O_NONBLOCK);
         if (fd == -1)
         {
             sleep(1);
@@ -221,13 +311,14 @@ void sendRequestRecivedConfirmationMessage(char *messange, char *processId)
     close(fd);
 }
 
-void confirmationResponsePipe(char *request, char *processId)
+void confirmationResponsePipe(struct Libro *db, char *buffer[MAX_S], char *processId, char *fileRoute)
 {
     char *tok;
-    tok = strtok(request, ",");
+    tok = strtok(buffer[0], ",");
     char tokens[3][255];
     int i = 0;
-
+    pthread_t th1;
+    struct arg_struct arguments;
     while (tok != NULL)
     {
         strcpy(tokens[i], tok);
@@ -238,6 +329,10 @@ void confirmationResponsePipe(char *request, char *processId)
     if (strcmp(tokens[0], "D") == 0)
     {
         sendRequestRecivedConfirmationMessage("¡¡Return book request recived!!\n", processId);
+        arguments.argDB = db;
+        arguments.argISBN = tokens[2];
+        arguments.fileRoute = fileRoute;
+        pthread_create(&th1, NULL, (void *)returnBook, &arguments);
     }
     else if (strcmp(tokens[0], "R") == 0)
     {
@@ -259,14 +354,15 @@ int main(int argc, char *argv[])
     else
     {
         struct Libro *db = getDB(argv[4]);
-        printf("<<<<<<<Data base: \n");
-        printDB(db);
+        //printDB(db);
         int fd;
         char *comm;
         int i = 0;
-        char *confirmationPipe;
+        char confirmationPipe[MAX_S];
+        char *buffer[MAX_S];
         pthread_t th2;
         char message[100];
+        int proId;
         unlink(argv[2]);
         mkfifo(argv[2], 0);
         chmod(argv[2], 460);
@@ -280,16 +376,28 @@ int main(int argc, char *argv[])
             }
             while (read(fd, message, 100) > 0)
             {
+                printf("Reading...\n");
                 if (i == 0)
                 {
-                    confirmationPipe = message;
-                    printf("Process ID: %s\n", message);
+                    proId = atoi(message);
+                    printf("Process ID: %d\n", proId);
                     i += 1;
                 }
                 else
                 {
-                    printf("Request: %s\n", message);
-                    confirmationResponsePipe(message, confirmationPipe);
+                    if (atoi(message) != proId)
+                    {
+                        printf("Request: %s\n", message);
+                        sprintf(confirmationPipe, "%d", proId);
+                        db = getDB(argv[4]);
+                        buffer[0] = message;
+                        printf("Buffer : %s\n", buffer[0]);
+                        confirmationResponsePipe(db, buffer, confirmationPipe, argv[4]);
+                    }
+                }
+                if (strlen(message) > 0)
+                {
+                    memset(message, 0, strlen(message));
                 }
             }
             i = 0;
