@@ -133,6 +133,7 @@ void workFromMenu(char *pipeReceptor)
         if (option != 1 && option != 2 && option != 3)
         {
             printf("Invalid command\n");
+            break;
         }
         else
         {
