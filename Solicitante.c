@@ -44,28 +44,6 @@ char *getBookInfoFromMenu()
     return info;
 }
 
-// void getBookInfoFromMenu()
-// {
-//     char bookName[100];
-//     char ISBN[100];
-//     static char info[255] = "";
-//     if (strlen(info) > 0)
-//     {
-//         memset(info, 0, strlen(info));
-//     }
-//     fflush(stdin);
-//     printf("¿Book Name? $");
-//     scanf(" %[^\n]s", bookName);
-//     printf("\n¿ISBN? $");
-//     fflush(stdin);
-//     scanf(" %[^\n]s", ISBN);
-//     strcat(info, ",");
-//     strcat(info, bookName);
-//     strcat(info, ",");
-//     strcat(info, ISBN);
-//     //printf("Info: %s\n", info);
-// }
-
 void readConfirmationMessage(int fd, char *processId)
 {
     //int fd;
@@ -133,7 +111,6 @@ void workFromMenu(char *pipeReceptor)
         if (option != 1 && option != 2 && option != 3)
         {
             printf("Invalid command\n");
-            break;
         }
         else
         {
@@ -161,11 +138,11 @@ void workFromMenu(char *pipeReceptor)
             printf("Request: %s\n", request);
             sendDataThroughPipe(processId, pipeReceptor, 0, 0, 1, processId);
             sendDataThroughPipe(request, pipeReceptor, 0, 1, 0, processId);
-            conti = continueValidation();
-            if (conti == 'n' || conti == 'N')
-            {
-                break;
-            }
+        }
+        conti = continueValidation();
+        if (conti == 'n' || conti == 'N')
+        {
+            break;
         }
     }
 }
