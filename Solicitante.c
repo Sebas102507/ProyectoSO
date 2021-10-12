@@ -18,7 +18,7 @@ char continueValidation()
     //printf("START\n");
     fflush(stdin);
     printf("¿Continue? (y/n) $");
-    scanf("%c", &result);
+    scanf(" %c", &result);
     return result;
 }
 
@@ -139,6 +139,7 @@ void workFromMenu(char *pipeReceptor)
             sendDataThroughPipe(processId, pipeReceptor, 0, 0, 1, processId);
             sendDataThroughPipe(request, pipeReceptor, 0, 1, 0, processId);
         }
+
         conti = continueValidation();
         if (conti == 'n' || conti == 'N')
         {
