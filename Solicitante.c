@@ -86,7 +86,7 @@ void sendDataThroughPipe(char *info, char *pipeReceptor, int infoIndex, int numR
     sleep(3);
     if (infoIndex == numRequests - 1)
     {
-        printf("CLOSED!!\n");
+        //printf("CLOSED!!\n");
         close(fd);
         close(fdRead);
     }
@@ -135,7 +135,7 @@ void workFromMenu(char *pipeReceptor)
                 strcat(request, "P");
                 strcat(request, getBookInfoFromMenu());
             }
-            printf("Request: %s\n", request);
+            //printf("Request: %s\n", request);
             sendDataThroughPipe(processId, pipeReceptor, 0, 0, 1, processId);
             sendDataThroughPipe(request, pipeReceptor, 0, 1, 0, processId);
         }

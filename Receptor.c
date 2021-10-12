@@ -34,6 +34,76 @@ struct Libro
     struct Ejemplar ejempl[MAX];
 };
 
+int checkIfBookIsAvailable(struct Libro *db, char *ISBN)
+{
+    int i = 0;
+    int isAvailable = 0;
+    while (1)
+    {
+        if (strlen(db[i].name) == 0)
+        {
+            break;
+        }
+        else
+        {
+            if (strcmp(db[i].ISBN, ISBN) == 0)
+            {
+                for (int j = 0; j < db[i].numEjemp; j++)
+                {
+                    if (strcmp(db[i].ejempl[j].status, "D") == 0)
+                    {
+                        isAvailable = 1;
+                        break;
+                    }
+                }
+            }
+        }
+        i++;
+    }
+    return isAvailable;
+}
+
+void generateReport(char report[MAX_S][MAX_S])
+{
+    printf("<<<<<Report>>>>>>\n");
+    int i = 0;
+    while (1)
+    {
+        if (strlen(report[i]) == 0)
+        {
+            break;
+        }
+        if (report[i][0] == 'P')
+        {
+            printf("%s\n", report[i]);
+        }
+        i += 1;
+    }
+    i = 0;
+    while (1)
+    {
+        if (strlen(report[i]) == 0)
+        {
+            break;
+        }
+        if (report[i][0] == 'D')
+        {
+            printf("%s\n", report[i]);
+        }
+        i += 1;
+    }
+}
+
+char *getRenovationDate()
+{
+    static char date[MAX_S];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    //strfcat(date, "%d-%d-%d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+    sprintf(date, "%d-%d-%d", tm.tm_mday + 7, tm.tm_mon + 1, tm.tm_year + 1900);
+    return date;
+}
+
 char *getCurrentDate()
 {
     static char date[MAX_S];
@@ -84,9 +154,12 @@ void updateDB(struct Libro *db, char *fileRoute)
     fclose(file);
 }
 
-//void *returnBook(struct Libro *db, char *bookName, char *ISBN)
-void returnBook(void *context)
+char *renewBook(void *context)
 {
+    static char rBookReport[MAX_S];
+    char bookName[MAX_S];
+    char index[10];
+    //sprintf(processId, "%d", getpid());
     struct arg_struct *arguments = context;
     int newNumEjem;
     struct Ejemplar newEjemplar;
@@ -101,18 +174,139 @@ void returnBook(void *context)
         }
         if (strcmp(arguments->argDB[i].ISBN, arguments->argISBN) == 0)
         {
-            //newEjemplar.fecha
-            //strcpy(newEjemplar.fecha, getCurrentDate());
-            newNumEjem = arguments->argDB[i].numEjemp + 1;
+            newNumEjem = arguments->argDB[i].numEjemp;
             newEjemplar.id = newNumEjem;
-            strcpy(newEjemplar.fecha, getCurrentDate());
+            strcat(bookName, arguments->argDB[i].name);
+            strcpy(newEjemplar.fecha, getRenovationDate());
             strcpy(newEjemplar.status, "D");
-            arguments->argDB[i].ejempl[arguments->argDB[i].numEjemp] = newEjemplar;
-            arguments->argDB[i].numEjemp = newNumEjem;
+
+            for (int j = 0; j < arguments->argDB[i].numEjemp; j++)
+            {
+                if (strcmp(arguments->argDB[i].ejempl[j].status, "P") == 0)
+                {
+                    strcpy(arguments->argDB[i].ejempl[j].fecha, newEjemplar.fecha);
+                    break;
+                }
+            }
         }
         i++;
     }
     updateDB(arguments->argDB, arguments->fileRoute);
+    sprintf(index, "%d", newEjemplar.id);
+    strcat(rBookReport, "P");
+    strcat(rBookReport, ",");
+    strcat(rBookReport, bookName);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, arguments->argISBN);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, index);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, newEjemplar.fecha);
+    return rBookReport;
+}
+
+//void *returnBook(struct Libro *db, char *bookName, char *ISBN)
+char *returnBook(void *context)
+{
+    static char rBookReport[MAX_S];
+    char bookName[MAX_S];
+    char index[10];
+    //sprintf(processId, "%d", getpid());
+    struct arg_struct *arguments = context;
+    int newNumEjem;
+    struct Ejemplar newEjemplar;
+    //printf("HEllo!!!!!!! %s\n", arguments->argISBN);
+    int i = 0;
+    while (1)
+    {
+        if (strlen(arguments->argDB[i].name) == 0)
+        {
+            //printf("END PRINT\n");
+            break;
+        }
+        if (strcmp(arguments->argDB[i].ISBN, arguments->argISBN) == 0)
+        {
+            newNumEjem = arguments->argDB[i].numEjemp;
+            newEjemplar.id = newNumEjem;
+            strcat(bookName, arguments->argDB[i].name);
+            strcpy(newEjemplar.fecha, getCurrentDate());
+            strcpy(newEjemplar.status, "D");
+
+            for (int j = 0; j < arguments->argDB[i].numEjemp; j++)
+            {
+                if (strcmp(arguments->argDB[i].ejempl[j].status, "P") == 0)
+                {
+                    strcpy(arguments->argDB[i].ejempl[j].status, newEjemplar.status);
+                    strcpy(arguments->argDB[i].ejempl[j].fecha, newEjemplar.fecha);
+                    break;
+                }
+            }
+        }
+        i++;
+    }
+    updateDB(arguments->argDB, arguments->fileRoute);
+    sprintf(index, "%d", newEjemplar.id);
+    strcat(rBookReport, newEjemplar.status);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, bookName);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, arguments->argISBN);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, index);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, newEjemplar.fecha);
+    return rBookReport;
+}
+
+char *requestBook(struct arg_struct *arguments)
+{
+    static char rBookReport[MAX_S];
+    char bookName[MAX_S];
+    char index[10];
+    //sprintf(processId, "%d", getpid());
+    int newNumEjem;
+    struct Ejemplar newEjemplar;
+    //printf("HEllo!!!!!!! %s\n", arguments->argISBN);
+    int i = 0;
+    while (1)
+    {
+        if (strlen(arguments->argDB[i].name) == 0)
+        {
+            //printf("END PRINT\n");
+            break;
+        }
+        if (strcmp(arguments->argDB[i].ISBN, arguments->argISBN) == 0)
+        {
+            newNumEjem = arguments->argDB[i].numEjemp;
+            newEjemplar.id = newNumEjem;
+            strcat(bookName, arguments->argDB[i].name);
+            strcpy(newEjemplar.fecha, getCurrentDate());
+            strcpy(newEjemplar.status, "P");
+
+            for (int j = 0; j < arguments->argDB[i].numEjemp; j++)
+            {
+                if (strcmp(arguments->argDB[i].ejempl[j].status, "D") == 0)
+                {
+                    strcpy(arguments->argDB[i].ejempl[j].status, newEjemplar.status);
+                    strcpy(arguments->argDB[i].ejempl[j].fecha, newEjemplar.fecha);
+                    break;
+                }
+            }
+        }
+        i++;
+    }
+    updateDB(arguments->argDB, arguments->fileRoute);
+    sprintf(index, "%d", newEjemplar.id);
+    strcat(rBookReport, newEjemplar.status);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, bookName);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, arguments->argISBN);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, index);
+    strcat(rBookReport, ",");
+    strcat(rBookReport, newEjemplar.fecha);
+    return rBookReport;
 }
 
 void printDB(struct Libro *db)
@@ -311,9 +505,10 @@ void sendRequestRecivedConfirmationMessage(char *messange, char *processId)
     close(fd);
 }
 
-void confirmationResponsePipe(struct Libro *db, char *buffer[MAX_S], char *processId, char *fileRoute)
+char *confirmationResponsePipe(struct Libro *db, char *buffer[MAX_S], char *processId, char *fileRoute)
 {
     char *tok;
+    static char *returnForReport;
     tok = strtok(buffer[0], ",");
     char tokens[3][255];
     int i = 0;
@@ -333,17 +528,38 @@ void confirmationResponsePipe(struct Libro *db, char *buffer[MAX_S], char *proce
         arguments.argISBN = tokens[2];
         arguments.fileRoute = fileRoute;
         pthread_create(&th1, NULL, (void *)returnBook, &arguments);
+        pthread_join(th1, (void **)&returnForReport);
     }
     else if (strcmp(tokens[0], "R") == 0)
     {
-        sendRequestRecivedConfirmationMessage("¡¡Renew book request recived!!\n", processId);
-        pthread_create(&th1, NULL, (void *)returnBook, &arguments);
+        char renovationMessage[MAX_S];
+        sprintf(renovationMessage, "%s, New Date: %s", "¡¡Renew book request recived!!", getRenovationDate());
+        sendRequestRecivedConfirmationMessage(renovationMessage, processId);
+        arguments.argDB = db;
+        arguments.argISBN = tokens[2];
+        arguments.fileRoute = fileRoute;
+        pthread_create(&th1, NULL, (void *)renewBook, &arguments);
+        pthread_join(th1, (void **)&returnForReport);
     }
     if (strcmp(tokens[0], "P") == 0)
     {
-        sendRequestRecivedConfirmationMessage("¡¡Request book request recived!!\n", processId);
-        pthread_create(&th1, NULL, (void *)returnBook, &arguments);
+        int isAvailable = checkIfBookIsAvailable(db, tokens[2]);
+        if (isAvailable)
+        {
+            sendRequestRecivedConfirmationMessage("¡¡Request book request recived!! \n Book Available :)\n", processId);
+            arguments.argDB = db;
+            arguments.argISBN = tokens[2];
+            arguments.fileRoute = fileRoute;
+            returnForReport = requestBook(&arguments);
+        }
+        else
+        {
+            sendRequestRecivedConfirmationMessage("¡¡Request book request recived!! \n Book Not Available :(\n", processId);
+            returnForReport = "Book not available";
+        }
     }
+    //printf("Return To Report------->>>>> %s\n", returnForReport);
+    return returnForReport;
 }
 
 int main(int argc, char *argv[])
@@ -362,6 +578,8 @@ int main(int argc, char *argv[])
         int i = 0;
         char confirmationPipe[MAX_S];
         char *buffer[MAX_S];
+        char report[MAX_S][MAX_S];
+        int rI = 0;
         pthread_t th2;
         char message[100];
         int proId;
@@ -378,23 +596,24 @@ int main(int argc, char *argv[])
             }
             while (read(fd, message, 100) > 0)
             {
-                printf("Reading...\n");
+                //printf("Reading...\n");
                 if (i == 0)
                 {
                     proId = atoi(message);
-                    printf("Process ID: %d\n", proId);
+                    //printf("Process ID: %d\n", proId);
                     i += 1;
                 }
                 else
                 {
                     if (atoi(message) != proId)
                     {
-                        printf("Request: %s\n", message);
+                        //printf("Request: %s\n", message);
                         sprintf(confirmationPipe, "%d", proId);
                         db = getDB(argv[4]);
                         buffer[0] = message;
-                        printf("Buffer : %s\n", buffer[0]);
-                        confirmationResponsePipe(db, buffer, confirmationPipe, argv[4]);
+                        //printf("Buffer : %s\n", buffer[0]);
+                        strcpy(report[rI], confirmationResponsePipe(db, buffer, confirmationPipe, argv[4]));
+                        rI += 1;
                     }
                 }
                 if (strlen(message) > 0)
@@ -407,7 +626,9 @@ int main(int argc, char *argv[])
             pthread_join(th2, (void **)&comm);
             if (*comm == 'r')
             {
-                printf("...Report: \n");
+                //printf("...Report: \n");
+                generateReport(report);
+                break;
                 // Generate report function
             }
             else if (*comm == 's')
