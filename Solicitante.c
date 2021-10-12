@@ -33,16 +33,38 @@ char *getBookInfoFromMenu()
     }
     fflush(stdin);
     printf("¿Book Name? $");
-    scanf("%[^\n]s", bookName);
+    scanf(" %[^\n]s", bookName);
     printf("\n¿ISBN? $");
     fflush(stdin);
-    scanf("%[^\n]s", ISBN);
+    scanf(" %[^\n]s", ISBN);
     strcat(info, ",");
     strcat(info, bookName);
     strcat(info, ",");
     strcat(info, ISBN);
     return info;
 }
+
+// void getBookInfoFromMenu()
+// {
+//     char bookName[100];
+//     char ISBN[100];
+//     static char info[255] = "";
+//     if (strlen(info) > 0)
+//     {
+//         memset(info, 0, strlen(info));
+//     }
+//     fflush(stdin);
+//     printf("¿Book Name? $");
+//     scanf(" %[^\n]s", bookName);
+//     printf("\n¿ISBN? $");
+//     fflush(stdin);
+//     scanf(" %[^\n]s", ISBN);
+//     strcat(info, ",");
+//     strcat(info, bookName);
+//     strcat(info, ",");
+//     strcat(info, ISBN);
+//     //printf("Info: %s\n", info);
+// }
 
 void readConfirmationMessage(int fd, char *processId)
 {
@@ -114,6 +136,7 @@ void workFromMenu(char *pipeReceptor)
         }
         else
         {
+            //getBookInfoFromMenu();
             if (strlen(request) > 0)
             {
                 memset(request, 0, strlen(request));

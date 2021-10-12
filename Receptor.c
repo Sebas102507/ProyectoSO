@@ -337,10 +337,12 @@ void confirmationResponsePipe(struct Libro *db, char *buffer[MAX_S], char *proce
     else if (strcmp(tokens[0], "R") == 0)
     {
         sendRequestRecivedConfirmationMessage("¡¡Renew book request recived!!\n", processId);
+        pthread_create(&th1, NULL, (void *)returnBook, &arguments);
     }
     if (strcmp(tokens[0], "P") == 0)
     {
         sendRequestRecivedConfirmationMessage("¡¡Request book request recived!!\n", processId);
+        pthread_create(&th1, NULL, (void *)returnBook, &arguments);
     }
 }
 
